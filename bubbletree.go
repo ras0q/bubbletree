@@ -102,16 +102,16 @@ func constructTree[T comparable](tree Tree[T]) []TreeLine[T] {
 		ID:  tree.ID(),
 		Raw: tree.Content(),
 	})
-	childLines := constructChildren(tree.Children(), "")
+	childLines := constructChildren(tree, "")
 	lines = append(lines, childLines...)
 
 	return lines
 }
 
-func constructChildren[T comparable](children iter.Seq2[Tree[T], bool], prefix string) []TreeLine[T] {
+func constructChildren[T comparable](tree Tree[T], prefix string) []TreeLine[T] {
 	lines := make([]TreeLine[T], 0)
 	b := strings.Builder{}
-	for child, hasNext := range children {
+	for child, hasNext := range tree.Children() {
 		connector := "├── "
 		nextPrefix := "│   "
 		if !hasNext {
@@ -129,7 +129,7 @@ func constructChildren[T comparable](children iter.Seq2[Tree[T], bool], prefix s
 		})
 		b.Reset()
 
-		childLines := constructChildren(child.Children(), nextPrefix)
+		childLines := constructChildren(child, nextPrefix)
 		lines = append(lines, childLines...)
 	}
 
