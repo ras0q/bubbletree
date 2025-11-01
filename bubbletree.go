@@ -10,16 +10,26 @@ import (
 
 // Bubbletea Messages
 type (
-	reconstructMsg[T comparable]   ItemTree[T]
+	reconstructMsg[T comparable]   Tree[T]
 	reconstructedMsg[T comparable] []TreeLine[T]
 )
 
 type Model[T comparable] struct {
-	ItemTree   ItemTree[T]
 	UpdateFunc func(line TreeLine[T], msg tea.Msg) tea.Cmd
 
 	currentLines   []TreeLine[T]
 	focusedLineNum int
+}
+
+type Tree[T comparable] interface {
+	ID() T
+	Content() string
+	Children() iter.Seq2[Tree[T], bool]
+}
+
+type TreeLine[T comparable] struct {
+	ID  T
+	Raw string
 }
 
 func New[T comparable]() Model[T] {
@@ -81,24 +91,13 @@ func (m Model[T]) View() string {
 
 // MARK: Helper methods
 
-func (m *Model[T]) SetTree(tree ItemTree[T]) tea.Cmd {
+func (m *Model[T]) SetTree(tree Tree[T]) tea.Cmd {
 	return func() tea.Msg {
 		return reconstructMsg[T](tree)
 	}
 }
 
-type ItemTree[T comparable] interface {
-	ID() T
-	Content() string
-	Children() iter.Seq2[ItemTree[T], bool]
-}
-
-type TreeLine[T comparable] struct {
-	ID  T
-	Raw string
-}
-
-func constructTree[T comparable](tree ItemTree[T]) []TreeLine[T] {
+func constructTree[T comparable](tree Tree[T]) []TreeLine[T] {
 	lines := make([]TreeLine[T], 0) // TODO: set appropriate cap
 	lines = append(lines, TreeLine[T]{
 		ID:  tree.ID(),
@@ -110,7 +109,7 @@ func constructTree[T comparable](tree ItemTree[T]) []TreeLine[T] {
 	return lines
 }
 
-func constructChildren[T comparable](children iter.Seq2[ItemTree[T], bool], prefix string) []TreeLine[T] {
+func constructChildren[T comparable](children iter.Seq2[Tree[T], bool], prefix string) []TreeLine[T] {
 	lines := make([]TreeLine[T], 0)
 	b := strings.Builder{}
 	for child, hasNext := range children {

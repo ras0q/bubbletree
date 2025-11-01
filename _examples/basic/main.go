@@ -108,7 +108,7 @@ type itemTree struct {
 	isOpened bool
 }
 
-var _ bubbletree.ItemTree[int] = itemTree{}
+var _ bubbletree.Tree[int] = itemTree{}
 
 func (t itemTree) ID() int {
 	return t.id
@@ -127,8 +127,8 @@ func (t itemTree) Content() string {
 	return prefix + t.content
 }
 
-func (t itemTree) Children() iter.Seq2[bubbletree.ItemTree[int], bool] {
-	return func(yield func(bubbletree.ItemTree[int], bool) bool) {
+func (t itemTree) Children() iter.Seq2[bubbletree.Tree[int], bool] {
+	return func(yield func(bubbletree.Tree[int], bool) bool) {
 		if !t.isOpened {
 			return
 		}
