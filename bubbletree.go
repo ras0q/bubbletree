@@ -45,7 +45,6 @@ func (m Model[T]) Init() tea.Cmd {
 func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 
-	tea.Println(msg)
 	switch msg := msg.(type) {
 	case reconstructMsg[T]:
 		cmds = append(cmds, func() tea.Msg {
