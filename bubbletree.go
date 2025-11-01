@@ -8,51 +8,70 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
-type Model[T comparable] struct {
-	ItemTree ItemTree[T]
+// Bubbletea Messages
+type (
+	ReconstructMsg                 struct{}
+	reconstructedMsg[T comparable] []TreeLine[T]
+)
 
-	currentLines []TreeLine[T]
-	focusedLine  int
+type Model[T comparable] struct {
+	ItemTree   ItemTree[T]
+	UpdateFunc func(line TreeLine[T], msg tea.Msg) tea.Cmd
+
+	currentLines   []TreeLine[T]
+	focusedLineNum int
 }
 
 func New[T comparable](tree ItemTree[T]) Model[T] {
 	return Model[T]{
-		ItemTree:    tree,
-		focusedLine: 0,
+		ItemTree:       tree,
+		focusedLineNum: 0,
 	}
 }
 
 func (m Model[T]) Init() tea.Cmd {
 	return func() tea.Msg {
-		lines := constructTree(m.ItemTree)
-		return TreeLinesConstructedMsg[T](lines)
+		return ReconstructMsg{}
 	}
 }
 
 func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
+	cmds := make([]tea.Cmd, 0)
+
 	switch msg := msg.(type) {
-	case TreeLinesConstructedMsg[T]:
+	case ReconstructMsg:
+		cmds = append(cmds, func() tea.Msg {
+			lines := constructTree(m.ItemTree)
+			return reconstructedMsg[T](lines)
+		})
+
+	case reconstructedMsg[T]:
 		m.currentLines = msg
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j":
 			l := len(m.currentLines)
-			m.focusedLine = (l + m.focusedLine + 1) % l
+			m.focusedLineNum = (l + m.focusedLineNum + 1) % l
 		case "k":
 			l := len(m.currentLines)
-			m.focusedLine = (l + m.focusedLine - 1) % l
+			m.focusedLineNum = (l + m.focusedLineNum - 1) % l
 		}
 	}
 
-	return m, nil
+	if m.currentLines != nil && m.UpdateFunc != nil {
+		cmd := m.UpdateFunc(m.currentLines[m.focusedLineNum], msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model[T]) View() string {
 	b := strings.Builder{}
 	for i, line := range m.currentLines {
 		style := lipgloss.NewStyle().Width(50) // TODO: set appropriate width
-		if i == m.focusedLine {
+		if i == m.focusedLineNum {
 			style = style.Background(lipgloss.Color("205")).Bold(true)
 		}
 		b.WriteString(style.Render(line.Raw))
@@ -72,8 +91,6 @@ type TreeLine[T comparable] struct {
 	ID  T
 	Raw string
 }
-
-type TreeLinesConstructedMsg[T comparable] []TreeLine[T]
 
 func constructTree[T comparable](tree ItemTree[T]) []TreeLine[T] {
 	lines := make([]TreeLine[T], 0) // TODO: set appropriate cap

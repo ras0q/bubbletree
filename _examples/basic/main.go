@@ -20,31 +20,51 @@ type rootModel struct {
 }
 
 func New() rootModel {
-	tree := itemTree{
+	treeItem := itemTree{
 		id:      1,
 		content: "Alice",
-		children: []itemTree{
+		children: []*itemTree{
 			{
 				id:      2,
 				content: "Bob",
-				children: []itemTree{
+				children: []*itemTree{
 					{
 						id:       3,
 						content:  "Charlie",
-						children: []itemTree{},
+						children: []*itemTree{},
 					},
 				},
 			},
 			{
 				id:       4,
 				content:  "Diana",
-				children: []itemTree{},
+				children: []*itemTree{},
 			},
 		},
 	}
+	tree := bubbletree.New(&treeItem)
+	tree.UpdateFunc = func(line bubbletree.TreeLine[int], msg tea.Msg) tea.Cmd {
+		var cmd tea.Cmd
+
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			focusedItem := treeItem.search(line.ID)
+
+			switch msg.String() {
+			case "h":
+				focusedItem.isOpened = false
+				cmd = func() tea.Msg { return bubbletree.ReconstructMsg{} }
+			case "l":
+				focusedItem.isOpened = true
+				cmd = func() tea.Msg { return bubbletree.ReconstructMsg{} }
+			}
+		}
+
+		return cmd
+	}
 
 	return rootModel{
-		tree: bubbletree.New(tree),
+		tree: tree,
 	}
 }
 
@@ -80,7 +100,8 @@ func (m rootModel) View() string {
 type itemTree struct {
 	id       int
 	content  string
-	children []itemTree
+	children []*itemTree
+	isOpened bool
 }
 
 var _ bubbletree.ItemTree[int] = itemTree{}
@@ -90,14 +111,42 @@ func (t itemTree) ID() int {
 }
 
 func (t itemTree) Content() string {
-	return t.content
+	prefix := ""
+	if len(t.children) > 0 {
+		if t.isOpened {
+			prefix = "▼"
+		} else {
+			prefix = "▶"
+		}
+	}
+
+	return prefix + t.content
 }
 
 func (t itemTree) Children() iter.Seq2[bubbletree.ItemTree[int], bool] {
 	return func(yield func(bubbletree.ItemTree[int], bool) bool) {
+		if !t.isOpened {
+			return
+		}
+
 		for i, child := range t.children {
 			hasNext := i < len(t.children)-1
 			yield(child, hasNext)
 		}
 	}
+}
+
+func (t *itemTree) search(id int) *itemTree {
+	if t.id == id {
+		return t
+	}
+
+	for _, child := range t.children {
+		result := child.search(id)
+		if result != nil {
+			return result
+		}
+	}
+
+	return nil
 }
