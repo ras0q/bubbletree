@@ -20,21 +20,25 @@ type rootModel struct {
 }
 
 func New() rootModel {
-	tree := ItemTree{
-		id: 1,
-		children: []ItemTree{
+	tree := itemTree{
+		id:      1,
+		content: "Alice",
+		children: []itemTree{
 			{
-				id: 2,
-				children: []ItemTree{
+				id:      2,
+				content: "Bob",
+				children: []itemTree{
 					{
 						id:       3,
-						children: []ItemTree{},
+						content:  "Charlie",
+						children: []itemTree{},
 					},
 				},
 			},
 			{
 				id:       4,
-				children: []ItemTree{},
+				content:  "Diana",
+				children: []itemTree{},
 			},
 		},
 	}
@@ -73,18 +77,23 @@ func (m rootModel) View() string {
 	return m.tree.View()
 }
 
-type ItemTree struct {
+type itemTree struct {
 	id       int
-	children []ItemTree
+	content  string
+	children []itemTree
 }
 
-var _ bubbletree.ItemTree[int] = ItemTree{}
+var _ bubbletree.ItemTree[int] = itemTree{}
 
-func (t ItemTree) ID() int {
+func (t itemTree) ID() int {
 	return t.id
 }
 
-func (t ItemTree) Children() iter.Seq2[bubbletree.ItemTree[int], bool] {
+func (t itemTree) Content() string {
+	return t.content
+}
+
+func (t itemTree) Children() iter.Seq2[bubbletree.ItemTree[int], bool] {
 	return func(yield func(bubbletree.ItemTree[int], bool) bool) {
 		for i, child := range t.children {
 			hasNext := i < len(t.children)-1
