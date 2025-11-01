@@ -10,7 +10,7 @@ import (
 
 // Bubbletea Messages
 type (
-	ReconstructMsg                 struct{}
+	reconstructMsg[T comparable]   ItemTree[T]
 	reconstructedMsg[T comparable] []TreeLine[T]
 )
 
@@ -22,26 +22,24 @@ type Model[T comparable] struct {
 	focusedLineNum int
 }
 
-func New[T comparable](tree ItemTree[T]) Model[T] {
-	return Model[T]{
-		ItemTree:       tree,
-		focusedLineNum: 0,
-	}
+func New[T comparable]() Model[T] {
+	return Model[T]{}
 }
 
+// MARK: Elm architecture implementation
+
 func (m Model[T]) Init() tea.Cmd {
-	return func() tea.Msg {
-		return ReconstructMsg{}
-	}
+	return nil
 }
 
 func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 	cmds := make([]tea.Cmd, 0)
 
+	tea.Println(msg)
 	switch msg := msg.(type) {
-	case ReconstructMsg:
+	case reconstructMsg[T]:
 		cmds = append(cmds, func() tea.Msg {
-			lines := constructTree(m.ItemTree)
+			lines := constructTree(msg)
 			return reconstructedMsg[T](lines)
 		})
 
@@ -79,6 +77,14 @@ func (m Model[T]) View() string {
 	}
 
 	return b.String()
+}
+
+// MARK: Helper methods
+
+func (m *Model[T]) SetTree(tree ItemTree[T]) tea.Cmd {
+	return func() tea.Msg {
+		return reconstructMsg[T](tree)
+	}
 }
 
 type ItemTree[T comparable] interface {

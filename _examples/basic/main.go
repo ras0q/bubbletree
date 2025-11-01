@@ -20,43 +20,21 @@ type rootModel struct {
 }
 
 func New() rootModel {
-	treeItem := itemTree{
-		id:      1,
-		content: "Alice",
-		children: []*itemTree{
-			{
-				id:      2,
-				content: "Bob",
-				children: []*itemTree{
-					{
-						id:       3,
-						content:  "Charlie",
-						children: []*itemTree{},
-					},
-				},
-			},
-			{
-				id:       4,
-				content:  "Diana",
-				children: []*itemTree{},
-			},
-		},
-	}
-	tree := bubbletree.New(&treeItem)
+	tree := bubbletree.New[int]()
 	tree.UpdateFunc = func(line bubbletree.TreeLine[int], msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
-			focusedItem := treeItem.search(line.ID)
+			focusedItem := mockTree.search(line.ID)
 
 			switch msg.String() {
 			case "h":
 				focusedItem.isOpened = false
-				cmd = func() tea.Msg { return bubbletree.ReconstructMsg{} }
+				cmd = tree.SetTree(mockTree)
 			case "l":
 				focusedItem.isOpened = true
-				cmd = func() tea.Msg { return bubbletree.ReconstructMsg{} }
+				cmd = tree.SetTree(mockTree)
 			}
 		}
 
@@ -71,9 +49,35 @@ func New() rootModel {
 var _ tea.Model = rootModel{}
 var _ tea.ViewModel = rootModel{}
 
+var mockTree = itemTree{
+	id:      1,
+	content: "Alice",
+	children: []*itemTree{
+		{
+			id:      2,
+			content: "Bob",
+			children: []*itemTree{
+				{
+					id:       3,
+					content:  "Charlie",
+					children: []*itemTree{},
+				},
+			},
+		},
+		{
+			id:       4,
+			content:  "Diana",
+			children: []*itemTree{},
+		},
+	},
+}
+
 // Init implements tea.Model.
 func (m rootModel) Init() tea.Cmd {
-	return m.tree.Init()
+	return tea.Batch(
+		m.tree.Init(),
+		m.tree.SetTree(mockTree),
+	)
 }
 
 // Update implements tea.Model.
