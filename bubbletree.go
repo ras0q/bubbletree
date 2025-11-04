@@ -10,25 +10,26 @@ import (
 
 // Bubbletea Messages
 type (
-	reconstructMsg[T comparable]   Tree[T]
-	reconstructedMsg[T comparable] []TreeLine[T]
-	setFocusedIDMsg[T comparable]  struct{ value T }
+	reconstructMsg[T comparable]   Node[T]
+	reconstructedMsg[T comparable] []RenderedLine[T]
+	setFocusMsg[T comparable]      struct{ id T }
 )
 
+// Bubbletea Model
 type Model[T comparable] struct {
-	UpdateFunc func(lines []TreeLine[T], focusedID T, msg tea.Msg) tea.Cmd
+	OnUpdate func(lines []RenderedLine[T], focusedID T, msg tea.Msg) tea.Cmd
 
-	currentLines []TreeLine[T]
-	focusedID    T
+	renderedLines []RenderedLine[T]
+	focusedID     T
 }
 
-type Tree[T comparable] interface {
+type Node[T comparable] interface {
 	ID() T
 	Content() string
-	Children() iter.Seq2[Tree[T], bool]
+	Children() iter.Seq2[Node[T], bool]
 }
 
-type TreeLine[T comparable] struct {
+type RenderedLine[T comparable] struct {
 	ID  T
 	Raw string
 }
@@ -49,46 +50,46 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 	switch msg := msg.(type) {
 	case reconstructMsg[T]:
 		cmds = append(cmds, func() tea.Msg {
-			lines := constructTree(msg)
+			lines := renderTree(msg)
 			return reconstructedMsg[T](lines)
 		})
 
 	case reconstructedMsg[T]:
-		m.currentLines = msg
+		m.renderedLines = msg
 		var zero T
-		if m.focusedID == zero && len(m.currentLines) > 0 {
-			m.focusedID = m.currentLines[0].ID
+		if m.focusedID == zero && len(m.renderedLines) > 0 {
+			m.focusedID = m.renderedLines[0].ID
 		}
 
-	case setFocusedIDMsg[T]:
-		m.focusedID = msg.value
+	case setFocusMsg[T]:
+		m.focusedID = msg.id
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j":
 			var ok bool
-			for i, line := range m.currentLines {
+			for i, line := range m.renderedLines {
 				if ok {
 					break
 				}
 
 				if line.ID == m.focusedID {
-					cursor := (i + 1) % len(m.currentLines)
-					m.focusedID = m.currentLines[cursor].ID
+					cursor := (i + 1) % len(m.renderedLines)
+					m.focusedID = m.renderedLines[cursor].ID
 					ok = true
 				}
 			}
 
 		case "k":
 			var ok bool
-			for i, line := range m.currentLines {
+			for i, line := range m.renderedLines {
 				if ok {
 					break
 				}
 
 				if line.ID == m.focusedID {
-					cursor := (i - 1 + len(m.currentLines)) % len(m.currentLines)
-					m.focusedID = m.currentLines[cursor].ID
+					cursor := (i - 1 + len(m.renderedLines)) % len(m.renderedLines)
+					m.focusedID = m.renderedLines[cursor].ID
 
 					break
 				}
@@ -96,8 +97,8 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 		}
 	}
 
-	if m.currentLines != nil && m.UpdateFunc != nil {
-		cmd := m.UpdateFunc(m.currentLines, m.focusedID, msg)
+	if m.renderedLines != nil && m.OnUpdate != nil {
+		cmd := m.OnUpdate(m.renderedLines, m.focusedID, msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -106,7 +107,7 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 
 func (m Model[T]) View() string {
 	b := strings.Builder{}
-	for _, line := range m.currentLines {
+	for _, line := range m.renderedLines {
 		style := lipgloss.NewStyle().Width(50) // TODO: set appropriate width
 		if line.ID == m.focusedID {
 			style = style.Background(lipgloss.Color("205")).Bold(true)
@@ -120,36 +121,36 @@ func (m Model[T]) View() string {
 
 // MARK: Helper methods
 
-func (m Model[T]) SetTree(tree Tree[T]) tea.Cmd {
+func (m Model[T]) SetTree(node Node[T]) tea.Cmd {
 	return func() tea.Msg {
-		return reconstructMsg[T](tree)
+		return reconstructMsg[T](node)
 	}
 }
 
 func (m Model[T]) SetFocusedID(focusedID T) tea.Cmd {
 	return func() tea.Msg {
-		return setFocusedIDMsg[T]{
-			value: focusedID,
+		return setFocusMsg[T]{
+			id: focusedID,
 		}
 	}
 }
 
-func constructTree[T comparable](tree Tree[T]) []TreeLine[T] {
-	lines := make([]TreeLine[T], 0) // TODO: set appropriate cap
-	lines = append(lines, TreeLine[T]{
-		ID:  tree.ID(),
-		Raw: tree.Content(),
+func renderTree[T comparable](node Node[T]) []RenderedLine[T] {
+	lines := make([]RenderedLine[T], 0) // TODO: set appropriate cap
+	lines = append(lines, RenderedLine[T]{
+		ID:  node.ID(),
+		Raw: node.Content(),
 	})
-	childLines := constructChildren(tree, "")
+	childLines := renderChildren(node, "")
 	lines = append(lines, childLines...)
 
 	return lines
 }
 
-func constructChildren[T comparable](tree Tree[T], prefix string) []TreeLine[T] {
-	lines := make([]TreeLine[T], 0)
+func renderChildren[T comparable](node Node[T], prefix string) []RenderedLine[T] {
+	lines := make([]RenderedLine[T], 0)
 	b := strings.Builder{}
-	for child, hasNext := range tree.Children() {
+	for child, hasNext := range node.Children() {
 		connector := "├── "
 		nextPrefix := "│   "
 		if !hasNext {
@@ -161,13 +162,13 @@ func constructChildren[T comparable](tree Tree[T], prefix string) []TreeLine[T] 
 		b.WriteString(connector)
 		b.WriteString(child.Content())
 
-		lines = append(lines, TreeLine[T]{
+		lines = append(lines, RenderedLine[T]{
 			ID:  child.ID(),
 			Raw: b.String(),
 		})
 		b.Reset()
 
-		childLines := constructChildren(child, prefix+nextPrefix)
+		childLines := renderChildren(child, prefix+nextPrefix)
 		lines = append(lines, childLines...)
 	}
 

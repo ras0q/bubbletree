@@ -21,7 +21,7 @@ type rootModel struct {
 
 func New() rootModel {
 	tree := bubbletree.New[int]()
-	tree.UpdateFunc = func(_ []bubbletree.TreeLine[int], focusedID int, msg tea.Msg) tea.Cmd {
+	tree.OnUpdate = func(_ []bubbletree.RenderedLine[int], focusedID int, msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 
 		switch msg := msg.(type) {
@@ -145,7 +145,7 @@ type itemTree struct {
 	isOpened bool
 }
 
-var _ bubbletree.Tree[int] = itemTree{}
+var _ bubbletree.Node[int] = itemTree{}
 
 func (t itemTree) ID() int {
 	return t.id
@@ -164,8 +164,8 @@ func (t itemTree) Content() string {
 	return prefix + t.content
 }
 
-func (t itemTree) Children() iter.Seq2[bubbletree.Tree[int], bool] {
-	return func(yield func(bubbletree.Tree[int], bool) bool) {
+func (t itemTree) Children() iter.Seq2[bubbletree.Node[int], bool] {
+	return func(yield func(bubbletree.Node[int], bool) bool) {
 		if !t.isOpened {
 			return
 		}
