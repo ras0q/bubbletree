@@ -29,7 +29,7 @@ func New() rootModel {
 			switch msg.String() {
 			case "h":
 				searchResult, ok := mockTree.search(focusedID)
-				if !ok {
+				if !ok || searchResult.parent == nil {
 					break
 				}
 
