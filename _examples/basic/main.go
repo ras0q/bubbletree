@@ -21,20 +21,51 @@ type rootModel struct {
 
 func New() rootModel {
 	tree := bubbletree.New[int]()
-	tree.UpdateFunc = func(line bubbletree.TreeLine[int], msg tea.Msg) tea.Cmd {
+	tree.UpdateFunc = func(_ []bubbletree.TreeLine[int], focusedID int, msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 
 		switch msg := msg.(type) {
 		case tea.KeyMsg:
-			focusedItem := mockTree.search(line.ID)
-
 			switch msg.String() {
 			case "h":
-				focusedItem.isOpened = false
-				cmd = tree.SetTree(mockTree)
+				searchResult, ok := mockTree.search(focusedID)
+				if !ok {
+					break
+				}
+
+				item := searchResult.item
+				parent := searchResult.parent
+				newFocusedID := focusedID
+
+				if item.isOpened {
+					item.isOpened = false
+				} else {
+					parent.isOpened = false
+					newFocusedID = parent.ID()
+				}
+
+				cmd = tea.Batch(
+					tree.SetTree(mockTree),
+					tree.SetFocusedID(newFocusedID),
+				)
+
 			case "l":
-				focusedItem.isOpened = true
-				cmd = tree.SetTree(mockTree)
+				searchResult, ok := mockTree.search(focusedID)
+				if !ok {
+					break
+				}
+
+				item := searchResult.item
+				if item.isLeaf() {
+					break
+				}
+
+				item.isOpened = true
+
+				cmd = tea.Batch(
+					tree.SetTree(mockTree),
+					tree.SetFocusedID(item.ID()),
+				)
 			}
 		}
 
@@ -58,15 +89,21 @@ var mockTree = itemTree{
 			content: "Bob",
 			children: []*itemTree{
 				{
-					id:       3,
-					content:  "Charlie",
-					children: []*itemTree{},
+					id:      3,
+					content: "Charlie",
+					children: []*itemTree{
+						{
+							id:       4,
+							content:  "Diana",
+							children: []*itemTree{},
+						},
+					},
 				},
 			},
 		},
 		{
-			id:       4,
-			content:  "Diana",
+			id:       5,
+			content:  "Eve",
 			children: []*itemTree{},
 		},
 	},
@@ -116,7 +153,7 @@ func (t itemTree) ID() int {
 
 func (t itemTree) Content() string {
 	prefix := ""
-	if len(t.children) > 0 {
+	if !t.isLeaf() {
 		if t.isOpened {
 			prefix = "▼"
 		} else {
@@ -140,17 +177,36 @@ func (t itemTree) Children() iter.Seq2[bubbletree.Tree[int], bool] {
 	}
 }
 
-func (t *itemTree) search(id int) *itemTree {
+func (t itemTree) isLeaf() bool {
+	return len(t.children) == 0
+}
+
+type treeSearchResult struct {
+	item   *itemTree
+	parent *itemTree
+}
+
+func (t *itemTree) search(id int) (*treeSearchResult, bool) {
 	if t.id == id {
-		return t
+		return &treeSearchResult{
+			item:   t,
+			parent: nil,
+		}, true
 	}
 
 	for _, child := range t.children {
-		result := child.search(id)
-		if result != nil {
-			return result
+		if child.id == id {
+			return &treeSearchResult{
+				item:   child,
+				parent: t,
+			}, true
+		}
+
+		result, ok := child.search(id)
+		if ok {
+			return result, true
 		}
 	}
 
-	return nil
+	return nil, false
 }

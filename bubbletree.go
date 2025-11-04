@@ -12,13 +12,14 @@ import (
 type (
 	reconstructMsg[T comparable]   Tree[T]
 	reconstructedMsg[T comparable] []TreeLine[T]
+	setFocusedIDMsg[T comparable]  struct{ value T }
 )
 
 type Model[T comparable] struct {
-	UpdateFunc func(line TreeLine[T], msg tea.Msg) tea.Cmd
+	UpdateFunc func(lines []TreeLine[T], focusedID T, msg tea.Msg) tea.Cmd
 
-	currentLines   []TreeLine[T]
-	focusedLineNum int
+	currentLines []TreeLine[T]
+	focusedID    T
 }
 
 type Tree[T comparable] interface {
@@ -54,20 +55,49 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 
 	case reconstructedMsg[T]:
 		m.currentLines = msg
+		var zero T
+		if m.focusedID == zero && len(m.currentLines) > 0 {
+			m.focusedID = m.currentLines[0].ID
+		}
+
+	case setFocusedIDMsg[T]:
+		m.focusedID = msg.value
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j":
-			l := len(m.currentLines)
-			m.focusedLineNum = (l + m.focusedLineNum + 1) % l
+			var ok bool
+			for i, line := range m.currentLines {
+				if ok {
+					break
+				}
+
+				if line.ID == m.focusedID {
+					cursor := (i + 1) % len(m.currentLines)
+					m.focusedID = m.currentLines[cursor].ID
+					ok = true
+				}
+			}
+
 		case "k":
-			l := len(m.currentLines)
-			m.focusedLineNum = (l + m.focusedLineNum - 1) % l
+			var ok bool
+			for i, line := range m.currentLines {
+				if ok {
+					break
+				}
+
+				if line.ID == m.focusedID {
+					cursor := (i - 1 + len(m.currentLines)) % len(m.currentLines)
+					m.focusedID = m.currentLines[cursor].ID
+
+					break
+				}
+			}
 		}
 	}
 
 	if m.currentLines != nil && m.UpdateFunc != nil {
-		cmd := m.UpdateFunc(m.currentLines[m.focusedLineNum], msg)
+		cmd := m.UpdateFunc(m.currentLines, m.focusedID, msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -76,9 +106,9 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 
 func (m Model[T]) View() string {
 	b := strings.Builder{}
-	for i, line := range m.currentLines {
+	for _, line := range m.currentLines {
 		style := lipgloss.NewStyle().Width(50) // TODO: set appropriate width
-		if i == m.focusedLineNum {
+		if line.ID == m.focusedID {
 			style = style.Background(lipgloss.Color("205")).Bold(true)
 		}
 		b.WriteString(style.Render(line.Raw))
@@ -90,9 +120,17 @@ func (m Model[T]) View() string {
 
 // MARK: Helper methods
 
-func (m *Model[T]) SetTree(tree Tree[T]) tea.Cmd {
+func (m Model[T]) SetTree(tree Tree[T]) tea.Cmd {
 	return func() tea.Msg {
 		return reconstructMsg[T](tree)
+	}
+}
+
+func (m Model[T]) SetFocusedID(focusedID T) tea.Cmd {
+	return func() tea.Msg {
+		return setFocusedIDMsg[T]{
+			value: focusedID,
+		}
 	}
 }
 
