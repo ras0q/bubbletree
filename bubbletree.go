@@ -17,6 +17,8 @@ type (
 
 // Bubbletea Model
 type Model[T comparable] struct {
+	Width    int
+	Height   int
 	OnUpdate func(lines []RenderedLine[T], focusedID T, msg tea.Msg) tea.Cmd
 
 	renderedLines []RenderedLine[T]
@@ -34,8 +36,11 @@ type RenderedLine[T comparable] struct {
 	Raw string
 }
 
-func New[T comparable]() Model[T] {
-	return Model[T]{}
+func New[T comparable](w, h int) Model[T] {
+	return Model[T]{
+		Width:  w,
+		Height: h,
+	}
 }
 
 // MARK: Elm architecture implementation
@@ -107,8 +112,13 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 
 func (m Model[T]) View() string {
 	b := strings.Builder{}
-	for _, line := range m.renderedLines {
-		style := lipgloss.NewStyle().Width(50) // TODO: set appropriate width
+	for i, line := range m.renderedLines {
+		// TODO: handle scrolling
+		if i > m.Height {
+			break
+		}
+
+		style := lipgloss.NewStyle().Width(m.Width) // TODO: set appropriate width
 		if line.ID == m.focusedID {
 			style = style.Background(lipgloss.Color("205")).Bold(true)
 		}
