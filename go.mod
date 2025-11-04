@@ -1,4 +1,4 @@
-module gihtub.com/ras0q/bubbletree
+module github.com/ras0q/bubbletree
 
 go 1.25.3
 
