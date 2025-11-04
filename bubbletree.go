@@ -129,7 +129,7 @@ func constructChildren[T comparable](tree Tree[T], prefix string) []TreeLine[T] 
 		})
 		b.Reset()
 
-		childLines := constructChildren(child, nextPrefix)
+		childLines := constructChildren(child, prefix+nextPrefix)
 		lines = append(lines, childLines...)
 	}
 
