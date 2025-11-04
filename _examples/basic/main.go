@@ -3,7 +3,7 @@ package main
 import (
 	"iter"
 
-	tea "github.com/charmbracelet/bubbletea/v2"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/ras0q/bubbletree"
 )
 
