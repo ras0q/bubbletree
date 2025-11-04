@@ -37,10 +37,10 @@ func New() rootModel {
 				parent := searchResult.parent
 				newFocusedID := focusedID
 
-				if item.isOpened {
-					item.isOpened = false
+				if item.isOpen {
+					item.isOpen = false
 				} else {
-					parent.isOpened = false
+					parent.isOpen = false
 					newFocusedID = parent.ID()
 				}
 
@@ -60,7 +60,7 @@ func New() rootModel {
 					break
 				}
 
-				item.isOpened = true
+				item.isOpen = true
 
 				cmd = tea.Batch(
 					tree.SetTree(mockTree),
@@ -141,7 +141,7 @@ type itemTree struct {
 	id       int
 	content  string
 	children []*itemTree
-	isOpened bool
+	isOpen   bool
 }
 
 var _ bubbletree.Node[int] = itemTree{}
@@ -153,7 +153,7 @@ func (t itemTree) ID() int {
 func (t itemTree) Content() string {
 	prefix := ""
 	if !t.isLeaf() {
-		if t.isOpened {
+		if t.isOpen {
 			prefix = "▼"
 		} else {
 			prefix = "▶"
@@ -165,7 +165,7 @@ func (t itemTree) Content() string {
 
 func (t itemTree) Children() iter.Seq2[bubbletree.Node[int], bool] {
 	return func(yield func(bubbletree.Node[int], bool) bool) {
-		if !t.isOpened {
+		if !t.isOpen {
 			return
 		}
 
