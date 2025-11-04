@@ -20,7 +20,7 @@ type rootModel struct {
 }
 
 func New() rootModel {
-	tree := bubbletree.New[int]()
+	tree := bubbletree.New[int](50, 20)
 	tree.OnUpdate = func(_ []bubbletree.RenderedLine[int], focusedID int, msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 
@@ -78,7 +78,6 @@ func New() rootModel {
 }
 
 var _ tea.Model = rootModel{}
-var _ tea.ViewModel = rootModel{}
 
 var mockTree = itemTree{
 	id:      1,
@@ -133,7 +132,7 @@ func (m rootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// View implements tea.ViewModel.
+// View implements tea.Model.
 func (m rootModel) View() string {
 	return m.tree.View()
 }
@@ -172,7 +171,9 @@ func (t itemTree) Children() iter.Seq2[bubbletree.Node[int], bool] {
 
 		for i, child := range t.children {
 			hasNext := i < len(t.children)-1
-			yield(child, hasNext)
+			if !yield(child, hasNext) {
+				return
+			}
 		}
 	}
 }
