@@ -20,9 +20,17 @@ type Model[T comparable] struct {
 	Width    int
 	Height   int
 	OnUpdate func(lines []RenderedLine[T], focusedID T, msg tea.Msg) tea.Cmd
+	Symbols  TreeSymbols
 
 	renderedLines []RenderedLine[T]
 	focusedID     T
+}
+
+type TreeSymbols struct {
+	BranchConnector string
+	LastConnector   string
+	IndentWithChild string
+	IndentNoChild   string
 }
 
 type Node[T comparable] interface {
@@ -40,6 +48,12 @@ func New[T comparable](w, h int) Model[T] {
 	return Model[T]{
 		Width:  w,
 		Height: h,
+		Symbols: TreeSymbols{
+			BranchConnector: "├── ",
+			LastConnector:   "└── ",
+			IndentWithChild: "│   ",
+			IndentNoChild:   "    ",
+		},
 	}
 }
 
@@ -55,7 +69,7 @@ func (m Model[T]) Update(msg tea.Msg) (Model[T], tea.Cmd) {
 	switch msg := msg.(type) {
 	case reconstructMsg[T]:
 		cmds = append(cmds, func() tea.Msg {
-			lines := renderTree(msg)
+			lines := m.renderTree(msg)
 			return reconstructedMsg[T](lines)
 		})
 
@@ -145,27 +159,27 @@ func (m Model[T]) SetFocusedID(focusedID T) tea.Cmd {
 	}
 }
 
-func renderTree[T comparable](node Node[T]) []RenderedLine[T] {
+func (m Model[T]) renderTree(node Node[T]) []RenderedLine[T] {
 	lines := make([]RenderedLine[T], 0) // TODO: set appropriate cap
 	lines = append(lines, RenderedLine[T]{
 		ID:  node.ID(),
 		Raw: node.Content(),
 	})
-	childLines := renderChildren(node, "")
+	childLines := m.renderChildren(node, "")
 	lines = append(lines, childLines...)
 
 	return lines
 }
 
-func renderChildren[T comparable](node Node[T], prefix string) []RenderedLine[T] {
+func (m Model[T]) renderChildren(node Node[T], prefix string) []RenderedLine[T] {
 	lines := make([]RenderedLine[T], 0)
 	b := strings.Builder{}
 	for child, hasNext := range node.Children() {
-		connector := "├── "
-		nextPrefix := "│   "
+		connector := m.Symbols.BranchConnector
+		nextPrefix := m.Symbols.IndentWithChild
 		if !hasNext {
-			connector = "└── "
-			nextPrefix = "    "
+			connector = m.Symbols.LastConnector
+			nextPrefix = m.Symbols.IndentNoChild
 		}
 
 		b.WriteString(prefix)
@@ -178,7 +192,7 @@ func renderChildren[T comparable](node Node[T], prefix string) []RenderedLine[T]
 		})
 		b.Reset()
 
-		childLines := renderChildren(child, prefix+nextPrefix)
+		childLines := m.renderChildren(child, prefix+nextPrefix)
 		lines = append(lines, childLines...)
 	}
 
