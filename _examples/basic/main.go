@@ -21,6 +21,7 @@ type rootModel struct {
 
 func New() rootModel {
 	tree := bubbletree.New[int](50, 20)
+	tree.SkipRoot = true
 	tree.OnUpdate = func(_ []bubbletree.RenderedLine[int], focusedID int, msg tea.Msg) tea.Cmd {
 		var cmd tea.Cmd
 
@@ -36,6 +37,10 @@ func New() rootModel {
 				item := searchResult.item
 				parent := searchResult.parent
 				newFocusedID := focusedID
+
+				if parent.id == mockTree.id {
+					break
+				}
 
 				if item.isOpen {
 					item.isOpen = false
@@ -82,6 +87,7 @@ var _ tea.Model = rootModel{}
 var mockTree = itemTree{
 	id:      1,
 	content: "Alice",
+	isOpen:  true,
 	children: []*itemTree{
 		{
 			id:      2,

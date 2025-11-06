@@ -21,6 +21,7 @@ type Model[T comparable] struct {
 	Height   int
 	OnUpdate func(lines []RenderedLine[T], focusedID T, msg tea.Msg) tea.Cmd
 	Symbols  TreeSymbols
+	SkipRoot bool
 
 	renderedLines []RenderedLine[T]
 	focusedID     T
@@ -161,25 +162,35 @@ func (m Model[T]) SetFocusedID(focusedID T) tea.Cmd {
 
 func (m Model[T]) renderTree(node Node[T]) []RenderedLine[T] {
 	lines := make([]RenderedLine[T], 0) // TODO: set appropriate cap
-	lines = append(lines, RenderedLine[T]{
-		ID:  node.ID(),
-		Raw: node.Content(),
-	})
-	childLines := m.renderChildren(node, "")
+	if !m.SkipRoot {
+		lines = append(lines, RenderedLine[T]{
+			ID:  node.ID(),
+			Raw: node.Content(),
+		})
+	}
+
+	childLines := m.renderChildren(node, "", true)
 	lines = append(lines, childLines...)
 
 	return lines
 }
 
-func (m Model[T]) renderChildren(node Node[T], prefix string) []RenderedLine[T] {
+func (m Model[T]) renderChildren(node Node[T], prefix string, isRoot bool) []RenderedLine[T] {
 	lines := make([]RenderedLine[T], 0)
 	b := strings.Builder{}
 	for child, hasNext := range node.Children() {
-		connector := m.Symbols.BranchConnector
-		nextPrefix := m.Symbols.IndentWithChild
-		if !hasNext {
-			connector = m.Symbols.LastConnector
-			nextPrefix = m.Symbols.IndentNoChild
+		var (
+			connector  string
+			nextPrefix string
+		)
+
+		if !isRoot || !m.SkipRoot {
+			connector = m.Symbols.BranchConnector
+			nextPrefix = m.Symbols.IndentWithChild
+			if !hasNext {
+				connector = m.Symbols.LastConnector
+				nextPrefix = m.Symbols.IndentNoChild
+			}
 		}
 
 		b.WriteString(prefix)
@@ -192,7 +203,7 @@ func (m Model[T]) renderChildren(node Node[T], prefix string) []RenderedLine[T] 
 		})
 		b.Reset()
 
-		childLines := m.renderChildren(child, prefix+nextPrefix)
+		childLines := m.renderChildren(child, prefix+nextPrefix, false)
 		lines = append(lines, childLines...)
 	}
 
